@@ -4,9 +4,9 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-string ExportDir = Environment.CurrentDirectory + "\\export";
+string ExportDir = args.Length == 0 ? Environment.CurrentDirectory + "\\export" : Path.Combine(args[0], "export");
 
-string logDir = @"C:\Users\jatis\source\repos\MinecraftLogAnalyzer\MinecraftLogAnalyzer\logs\";
+string logDir = args.Length == 0 ? @"C:\Users\jatis\source\repos\MinecraftLogAnalyzer\MinecraftLogAnalyzer\logs\" : args[0];
 
 string[] files = Directory.GetFiles(logDir, "*.gz");
 
@@ -97,16 +97,18 @@ foreach (Log l in logs)
         if (oldMsgs)
         {
             var chatMessages = from msg in messages
-                                where msg.Message.Contains($"<{p.Name}>")
-                                select msg.Message.Substring(msg.Message.IndexOf($"<{p.Name}>") + $"<{p.Name}> ".Length);
-            p.ChatMessages.AddRange(chatMessages);
+                               where msg.Message.Contains($"<{p.Name}>")
+                               select new KeyValuePair<DateTime, string>(msg.TimeStamp, msg.Message.Substring(msg.Message.IndexOf($"<{p.Name}>") + $"<{p.Name}> ".Length));
+            foreach (var chatMsg in chatMessages)
+                p.ChatMessages.Add(chatMsg.Key, chatMsg.Value);
         }
         else
         {
             var chatMessages = from msg in messages
                                where msg.Message.Contains($" | {p.Name}:")
-                               select msg.Message.Substring(msg.Message.IndexOf($" | {p.Name}:") + $" | {p.Name}: ".Length);
-            p.ChatMessages.AddRange(chatMessages);
+                               select new KeyValuePair<DateTime, string>(msg.TimeStamp, msg.Message.Substring(msg.Message.IndexOf($" | {p.Name}:") + $" | {p.Name}: ".Length));
+            foreach (var chatMsg in chatMessages)
+                p.ChatMessages.Add(chatMsg.Key, chatMsg.Value);
         }
     }
 }
@@ -219,7 +221,6 @@ Console.WriteLine("Finished Processing Player Deaths/Kills");
 #endregion
 
 #region Commands
-// issued server command: /gamemode 1?
 foreach (Log l in logs)
 {
     var commandLogMessages = from msg in l.LogMessages
@@ -326,7 +327,7 @@ record Player
 {
     public string Name { get; set; }
     public TimeSpan PlayTime { get; set; }
-    public List<string> ChatMessages { get; set; } = new List<string>();
+    public Dictionary<DateTime, string> ChatMessages { get; set; } = new Dictionary<DateTime, string>();
     public List<Advancement> Advancements { get; set; } = new List<Advancement>();
     public List<PlayerKill> PlayerKills { get; set; } = new List<PlayerKill>();
     public List<Death> Deaths { get; set; } = new List<Death>();
