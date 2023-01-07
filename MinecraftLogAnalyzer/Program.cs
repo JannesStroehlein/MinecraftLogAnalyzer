@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 string ExportDir = args.Length == 0 ? Environment.CurrentDirectory + "\\export" : Path.Combine(args[0], "export");
 
 string logDir = args.Length == 0 ? @"C:\Users\jatis\source\repos\MinecraftLogAnalyzer\MinecraftLogAnalyzer\logs\" : args[0];
+//string logDir = args.Length == 0 ? @"C:\Users\jatis\Downloads\Serverlogs\2020Server" : args[0];
 
 string[] files = Directory.GetFiles(logDir, "*.gz");
 
@@ -29,15 +30,14 @@ foreach (string file in files)
     logs.Add(log);
 }
 
+int totalLines = 0;
 foreach (Log l in logs)
 {
     l.Parse();
-    //Console.WriteLine($"{l.StartTime:f}: Lines: {l.Lines.Length}");
+    totalLines += l.Lines.Length;
 }
-
-/*Console.ReadLine();
-foreach (string chatMessage in chatMessages)
-    Console.WriteLine(chatMessage);*/
+    
+Console.WriteLine($"Parsed {logs.Count} logs with a total of {totalLines} lines");
 
 #region PlayTime
 List<LogMessage> playerJoinAndLeaves = new List<LogMessage>();
@@ -58,15 +58,25 @@ foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
     string playerName = joinLeaveEvent.Message.Substring(0, joinLeaveEvent.Message.IndexOf(' '));
     if (joinLeaveEvent.Message.Contains(" joined the game"))
     {
-        runningSessions.Add(playerName, joinLeaveEvent.TimeStamp);
+        if (runningSessions.ContainsKey(playerName)) // Server crashed and the session and was not logged
+            runningSessions[playerName] = joinLeaveEvent.TimeStamp; // Reset the current session to the time of this join leave event
+        else 
+            runningSessions.Add(playerName, joinLeaveEvent.TimeStamp);
     }
     else
     {
-        DateTime startTime = runningSessions[playerName];
-        runningSessions.Remove(playerName);
-        if (!playtime.ContainsKey(playerName))
-            playtime.Add(playerName, TimeSpan.Zero);
-        playtime[playerName] += joinLeaveEvent.TimeStamp - startTime;
+        if (runningSessions.ContainsKey(playerName))
+        {
+            DateTime startTime = runningSessions[playerName];
+            runningSessions.Remove(playerName);
+            if (!playtime.ContainsKey(playerName))
+                playtime.Add(playerName, TimeSpan.Zero);
+            playtime[playerName] += joinLeaveEvent.TimeStamp - startTime;
+        }
+        else
+        {
+            Console.WriteLine($"The session date of {playerName} seems to be corrupted");
+        }
     }
 }
 
@@ -132,13 +142,15 @@ foreach (Log l in logs)
         };
         if (!firstUnlocks.ContainsKey(advancement.Name))
             firstUnlocks.Add(advancement.Name, new KeyValuePair<string, DateTime>(msg.Message.Split(' ')[0], msg.TimeStamp));
+        if (players.FirstOrDefault((p) => p.Name == msg.Message.Split(' ')[0]) == default(Player))
+            players.Add(new Player() { Name = msg.Message.Split(' ')[0] });
         players.Find((p) => p.Name == msg.Message.Split(' ')[0])!.Advancements.Add(advancement);
     }
 }
 Console.WriteLine("Finished Processing Player Advancements");
 #endregion
 
-#region Deaths
+#region Kills/Deaths
 Dictionary<string, int> mobKills = new Dictionary<string, int>();
 
 // Reading all Death Messages
@@ -182,7 +194,9 @@ foreach (Log l in logs)
                         3 => $"{match.Groups[2].Value} killed {match.Groups[1].Value}",
                         4 => $"{match.Groups[2].Value} killed {match.Groups[1].Value} with {match.Groups[3].Value}",
                     }}");*/
-                players.Find((p) => p.Name == match.Groups[1].Value).Deaths.Add(
+                if (players.FirstOrDefault((p) => p.Name == match.Groups[1].Value) == default(Player))
+                    players.Add(new Player() { Name = match.Groups[1].Value });
+                players.Find((p) => p.Name == match.Groups[1].Value)!.Deaths.Add(
                     new Death()
                     {
                         Message = possibleDeathMsg.Message,
@@ -230,7 +244,9 @@ foreach (Log l in logs)
     foreach (LogMessage msg in commandLogMessages)
     {
         string player = msg.Message.Substring(0, msg.Message.IndexOf(" issued server command: "));
-        players.Find((p) => p.Name == player).Commands.Add(new CommandExecutions()
+        if (players.FirstOrDefault((p) => p.Name == player) == default(Player))
+            players.Add(new Player() { Name = player });
+        players.Find((p) => p.Name == player)!.Commands.Add(new CommandExecutions()
         {
             Command = msg.Message.Substring(msg.Message.IndexOf(" issued server command: ") + " issued server command: ".Length),
             Time = msg.TimeStamp
@@ -301,6 +317,8 @@ record Log
 }
 record LogMessage
 {
+    private static Regex logMessageRegex = new Regex(@"\[(\d{2}:\d{2}:\d{2})\] \[(.*)/(.*)\]: (.*)");
+    
     public DateTime TimeStamp { get; set; }
     public string Category { get; set; }
     public string Severity { get; set; }
@@ -309,9 +327,17 @@ record LogMessage
     public LogMessage(DateTime date, string message)
     {
         //[13:40:38] [Server thread/INFO]: Lonnietbc left the game
-        if (!message.Contains(']') || message.StartsWith('\t'))
+        Match match = logMessageRegex.Match(message);
+        if (!match.Success)
             return;
-        this.TimeStamp = date.Date.Add(DateTime.Parse(message.Substring(1, 8)).TimeOfDay);
+        this.TimeStamp = date.Date.Add(DateTime.Parse(match.Groups[1].Value).TimeOfDay);
+        this.Category = match.Groups[2].Value;
+        this.Severity = match.Groups[3].Value;
+        this.Message = match.Groups[4].Value;
+
+        /*if (!message.Contains(']') || message.StartsWith('\t'))
+            return;
+        
         string[] msgSegments = message.Split('[');
         if (msgSegments.Length < 3)
             return;
@@ -320,7 +346,7 @@ record LogMessage
         Category = msgSegments[2].Substring(0, splitPos);
         Severity = msgSegments[2].Substring(splitPos + 1, msgStart - splitPos - 1);
         int totalMsgStart = message.IndexOf("]: ") + 3;
-        Message = message.Substring(totalMsgStart).TrimEnd().Replace("\0", "");
+        Message = message.Substring(totalMsgStart).TrimEnd().Replace("\0", "");*/
     }
 }
 record Player
