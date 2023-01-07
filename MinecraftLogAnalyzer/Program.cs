@@ -3,10 +3,28 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
+using CommandLine;
+using MinecraftLogAnalyzer.Models;
+using MinecraftLogAnalyzer;
 
-string ExportDir = args.Length == 0 ? Environment.CurrentDirectory + "\\export" : Path.Combine(args[0], "export");
+ParserResult<CommandLineOptions> result = Parser.Default.ParseArguments<CommandLineOptions>(args);
 
-string logDir = args.Length == 0 ? @"C:\Users\jatis\source\repos\MinecraftLogAnalyzer\MinecraftLogAnalyzer\logs\" : args[0];
+if (result.Tag == ParserResultType.NotParsed)
+    return;
+
+CommandLineOptions options = result.Value;
+
+string ExportDir = options.ExportDir != null ? options.ExportDir : options.LogDirectory + @"\export";
+if (options.ExportDir == null && !options.NoExport)
+    Directory.CreateDirectory(ExportDir);
+
+if (!Directory.Exists(ExportDir) && !options.NoExport)
+{
+    Console.WriteLine("Error: The specified export directory does not exist.");
+    return;
+}
+    
+string logDir = options.LogDirectory;
 //string logDir = args.Length == 0 ? @"C:\Users\jatis\Downloads\Serverlogs\2020Server" : args[0];
 
 string[] files = Directory.GetFiles(logDir, "*.gz");
@@ -279,107 +297,26 @@ Console.WriteLine($"\n{"Username",-20} {"Messages", -12} {"Kills", -6} {"Deaths"
 foreach (Player p in sortedPlayerList)
     Console.WriteLine($"{p.Name,-20} {p.ChatMessages.Count,-12} {p.PlayerKills.Count,-6} {p.Deaths.Count,-6} {p.Deaths.Count / p.PlayTime.TotalHours,-6:N3} {p.Commands.Count,-8} {p.Advancements.Count, -16} {p.PlayTime.TotalHours,-10:N1} h");
 
-Directory.CreateDirectory(ExportDir);
-foreach (Player p in players)
+if (options.NoExport)
 {
-    string filenameFormat = ExportDir + "\\" + p.Name.Replace(".", "") + " {0}.json";
-    string filename = string.Format(filenameFormat, "");
-    int i = 1;
-    while (File.Exists(filename))
-        filename = string.Format(filenameFormat, "(" + (i++) + ")");
-
-    File.WriteAllText(filename, JsonConvert.SerializeObject(p, Formatting.Indented));
+    Console.WriteLine("Skipping export");
 }
-Console.WriteLine("Exported all playerdata");
+else
+{
+    foreach (Player p in players)
+    {
+        string filenameFormat = ExportDir + "\\" + p.Name.Replace(".", "") + " {0}.json";
+        string filename = string.Format(filenameFormat, "");
+        int i = 1;
+        while (File.Exists(filename))
+            filename = string.Format(filenameFormat, "(" + (i++) + ")");
 
-File.WriteAllText(Path.Combine(ExportDir, "mobs.json"), JsonConvert.SerializeObject(mobKills, Formatting.Indented));
-Console.WriteLine("Exported all mob kills");
+        File.WriteAllText(filename, JsonConvert.SerializeObject(p, Formatting.Indented));
+    }
+    Console.WriteLine("Exported all playerdata");
+
+    File.WriteAllText(Path.Combine(ExportDir, "mobs.json"), JsonConvert.SerializeObject(mobKills, Formatting.Indented));
+    Console.WriteLine("Exported all mob kills");
+}
+
 #endregion
-
-
-record Log
-{
-    public DateTime StartTime { get; set; }
-    public string[] Lines { get; set; }
-
-    public List<LogMessage> LogMessages { get; set; }
-
-    public void Parse()
-    {
-        LogMessages = new List<LogMessage>();
-        foreach (string l in Lines)
-        {
-            LogMessage m = new LogMessage(StartTime, l);
-            if (m.Category != null)
-                LogMessages.Add(m);
-        }
-    }
-}
-record LogMessage
-{
-    private static Regex logMessageRegex = new Regex(@"\[(\d{2}:\d{2}:\d{2})\] \[(.*)/(.*)\]: (.*)");
-    
-    public DateTime TimeStamp { get; set; }
-    public string Category { get; set; }
-    public string Severity { get; set; }
-    public string Message { get; set; }
-
-    public LogMessage(DateTime date, string message)
-    {
-        //[13:40:38] [Server thread/INFO]: Lonnietbc left the game
-        Match match = logMessageRegex.Match(message);
-        if (!match.Success)
-            return;
-        this.TimeStamp = date.Date.Add(DateTime.Parse(match.Groups[1].Value).TimeOfDay);
-        this.Category = match.Groups[2].Value;
-        this.Severity = match.Groups[3].Value;
-        this.Message = match.Groups[4].Value;
-
-        /*if (!message.Contains(']') || message.StartsWith('\t'))
-            return;
-        
-        string[] msgSegments = message.Split('[');
-        if (msgSegments.Length < 3)
-            return;
-        int splitPos = msgSegments[2].IndexOf('/');
-        int msgStart = msgSegments[2].IndexOf(']');
-        Category = msgSegments[2].Substring(0, splitPos);
-        Severity = msgSegments[2].Substring(splitPos + 1, msgStart - splitPos - 1);
-        int totalMsgStart = message.IndexOf("]: ") + 3;
-        Message = message.Substring(totalMsgStart).TrimEnd().Replace("\0", "");*/
-    }
-}
-record Player
-{
-    public string Name { get; set; }
-    public TimeSpan PlayTime { get; set; }
-    public Dictionary<DateTime, string> ChatMessages { get; set; } = new Dictionary<DateTime, string>();
-    public List<Advancement> Advancements { get; set; } = new List<Advancement>();
-    public List<PlayerKill> PlayerKills { get; set; } = new List<PlayerKill>();
-    public List<Death> Deaths { get; set; } = new List<Death>();
-    public List<CommandExecutions> Commands { get; set; } = new List<CommandExecutions>();
-}
-record Advancement
-{
-    public string Name { set; get; }
-    public DateTime UnlockTime { get; set; }
-}
-record PlayerKill
-{
-    public string DeathQualifier { set; get; }
-    public string Target { set; get; }
-    public string ItemName { set; get; }
-    public string Message { set; get; }
-    public DateTime Time { set; get; }
-}
-record Death
-{
-    public string DeathQualifier { set; get; }
-    public string Message { set; get; }
-    public DateTime Time { set; get; }
-}
-record CommandExecutions
-{
-    public string Command { set; get; }
-    public DateTime Time { set; get; }
-}
