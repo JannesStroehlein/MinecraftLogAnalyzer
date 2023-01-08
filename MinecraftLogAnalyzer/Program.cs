@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using CommandLine;
 using MinecraftLogAnalyzer.Models;
 using MinecraftLogAnalyzer;
+using System.Reflection;
 
 ParserResult<CommandLineOptions> result = Parser.Default.ParseArguments<CommandLineOptions>(args);
 
@@ -172,7 +173,7 @@ Console.WriteLine("Finished Processing Player Advancements");
 Dictionary<string, int> mobKills = new Dictionary<string, int>();
 
 // Reading all Death Messages
-string langFile = @"C:\Users\jatis\source\repos\MinecraftLogAnalyzer\MinecraftLogAnalyzer\lang.lang";
+string langFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "lang.lang");
 Dictionary<string, string> deathMessages = new Dictionary<string, string>();
 foreach (string line in File.ReadAllLines(langFile))
 {
