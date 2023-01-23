@@ -72,6 +72,7 @@ foreach (Log l in logs)
 Console.WriteLine($"Found {playerJoinAndLeaves.Count} Player join and leave events");
 Dictionary<string, TimeSpan> playtime = new Dictionary<string, TimeSpan>();
 Dictionary<string, DateTime> runningSessions = new Dictionary<string, DateTime>();
+Dictionary<string, DateTime> lastSeen = new Dictionary<string, DateTime>();
 foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
 {
     string playerName = joinLeaveEvent.Message.Substring(0, joinLeaveEvent.Message.IndexOf(' '));
@@ -81,6 +82,10 @@ foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
             runningSessions[playerName] = joinLeaveEvent.TimeStamp; // Reset the current session to the time of this join leave event
         else 
             runningSessions.Add(playerName, joinLeaveEvent.TimeStamp);
+        if (lastSeen.ContainsKey(playerName))
+            lastSeen[playerName] = joinLeaveEvent.TimeStamp;
+        else 
+            lastSeen.Add(playerName, joinLeaveEvent.TimeStamp);
     }
     else
     {
@@ -91,6 +96,10 @@ foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
             if (!playtime.ContainsKey(playerName))
                 playtime.Add(playerName, TimeSpan.Zero);
             playtime[playerName] += joinLeaveEvent.TimeStamp - startTime;
+            if (lastSeen.ContainsKey(playerName))
+                lastSeen[playerName] = joinLeaveEvent.TimeStamp;
+            else
+                lastSeen.Add(playerName, joinLeaveEvent.TimeStamp);
         }
         else
         {
@@ -101,7 +110,7 @@ foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
 
 List<Player> players = new List<Player>();
 foreach (KeyValuePair<string, TimeSpan> player in playtime)
-    players.Add(new Player() { Name = player.Key, PlayTime = player.Value });
+    players.Add(new Player() { Name = player.Key, PlayTime = player.Value, LastSeen = lastSeen[player.Key] });
 
 /*var sortedPlaytimes = from entry in playtime 
                       orderby entry.Value descending 
@@ -291,12 +300,12 @@ foreach (KeyValuePair<string, int> keyValue in sortedMobKills)
     Console.WriteLine($"{keyValue.Key,-20} {keyValue.Value,-8}");
 
 var sortedPlayerList = from p in players
-                        orderby p.Deaths.Count / p.PlayTime.TotalHours descending
+                        orderby p.LastSeen descending
                         select p;
 Console.WriteLine("\nPlayer Stats:");
-Console.WriteLine($"\n{"Username",-20} {"Messages", -12} {"Kills", -6} {"Deaths",-6} {"d/h",-6} {"Commands",-10} {"Advancements", -16} {"Playtime",-10}\n");
+Console.WriteLine($"\n{"Username",-20} {"Last Seen",-20} {"Messages", -12} {"Kills", -6} {"Deaths",-6} {"d/h",-6} {"Commands",-10} {"Advancements", -16} {"Playtime",-10}\n");
 foreach (Player p in sortedPlayerList)
-    Console.WriteLine($"{p.Name,-20} {p.ChatMessages.Count,-12} {p.PlayerKills.Count,-6} {p.Deaths.Count,-6} {p.Deaths.Count / p.PlayTime.TotalHours,-6:N3} {p.Commands.Count,-8} {p.Advancements.Count, -16} {p.PlayTime.TotalHours,-10:N1} h");
+    Console.WriteLine($"{p.Name,-20} {p.LastSeen,-20} {p.ChatMessages.Count,-12} {p.PlayerKills.Count,-6} {p.Deaths.Count,-6} {p.Deaths.Count / p.PlayTime.TotalHours,-6:N3} {p.Commands.Count,-8} {p.Advancements.Count, -16} {p.PlayTime.TotalHours,-10:N1} h");
 
 if (options.NoExport)
 {

@@ -3,6 +3,7 @@
     internal record Player
 {
     public string Name { get; set; }
+    public DateTime LastSeen { get; set; }
     public TimeSpan PlayTime { get; set; }
     public Dictionary<DateTime, string> ChatMessages { get; set; } = new Dictionary<DateTime, string>();
     public List<Advancement> Advancements { get; set; } = new List<Advancement>();
