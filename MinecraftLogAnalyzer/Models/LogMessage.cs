@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 
 namespace MinecraftLogAnalyzer.Models
 {
@@ -25,7 +20,7 @@ namespace MinecraftLogAnalyzer.Models
             this.TimeStamp = date.Date.Add(DateTime.Parse(match.Groups[1].Value).TimeOfDay);
             this.Category = match.Groups[2].Value;
             this.Severity = match.Groups[3].Value;
-            this.Message = match.Groups[4].Value;
+            this.Message = match.Groups[4].Value.Replace("\0", "");
 
             /*if (!message.Contains(']') || message.StartsWith('\t'))
                 return;

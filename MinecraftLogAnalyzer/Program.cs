@@ -7,6 +7,7 @@ using CommandLine;
 using MinecraftLogAnalyzer.Models;
 using MinecraftLogAnalyzer;
 using System.Reflection;
+using System.Globalization;
 
 ParserResult<CommandLineOptions> result = Parser.Default.ParseArguments<CommandLineOptions>(args);
 
@@ -73,7 +74,6 @@ Console.WriteLine($"Found {playerJoinAndLeaves.Count} Player join and leave even
 Dictionary<string, TimeSpan> playtime = new Dictionary<string, TimeSpan>();
 Dictionary<string, DateTime> runningSessions = new Dictionary<string, DateTime>();
 Dictionary<string, DateTime> lastSeen = new Dictionary<string, DateTime>();
-Dictionary<string, string> UUID = new Dictionary<string, string>();
 
 foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
 {
@@ -119,6 +119,62 @@ foreach (KeyValuePair<string, TimeSpan> player in playtime)
                       select entry;
 */
 Console.WriteLine("Finished Calculating Playtimes");
+#endregion
+
+#region UUIDs
+foreach (Log l in logs)
+{
+    Regex UUIDRegex = new Regex(@"UUID of player (.*) is (.*)");
+    var possibleMsgs = from msg in l.LogMessages
+                       where msg.Category.StartsWith("User Authenticator") && msg.Severity == "INFO"
+                       select msg;
+    foreach (LogMessage msg in possibleMsgs)
+    {
+        Match m = UUIDRegex.Match(msg.Message);
+        if (!m.Success)
+            continue;
+
+        Player? p = players.Find((o) => o.Name == m.Groups[1].Value);
+        if (p == null) continue;
+
+        p.UUID = m.Groups[2].Value;
+    }
+}
+Console.WriteLine("Finished Processing Player UUIDs");
+#endregion
+
+#region IP, World, LoginPos
+Regex messageDisectionRegex = new Regex(@"(.*)\[/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})] logged in with entity id \d{1,10} at \(\[(.*)\]([+-]?[0-9]*[.]?[0-9]+), ([+-]?[0-9]*[.]?[0-9]+), ([+-]?[0-9]*[.]?[0-9]+)\)");
+foreach (Log l in logs)
+{
+    var possibleMsgs = from msg in l.LogMessages
+                        where msg.Category == "Server thread" && msg.Severity == "INFO"
+                        select msg;
+    foreach (LogMessage msg in possibleMsgs)
+    {
+        Match m = messageDisectionRegex.Match(msg.Message);
+        if (!m.Success)
+            continue;
+
+        Player? p = players.Find((o) => o.Name == m.Groups[1].Value);
+        if (p == null) continue;
+
+        if (p.IPs.ContainsKey(m.Groups[2].Value))
+            p.IPs[m.Groups[2].Value]++;
+        else
+            p.IPs.Add(m.Groups[2].Value, 1);
+
+        p.LoginPositions.Add(new LoginEventData()
+        {
+            Time = msg.TimeStamp,
+            World = m.Groups[4].Value,
+            X = float.Parse(m.Groups[5].Value, CultureInfo.InvariantCulture),
+            Y = float.Parse(m.Groups[6].Value, CultureInfo.InvariantCulture),
+            Z = float.Parse(m.Groups[7].Value, CultureInfo.InvariantCulture)
+        });
+    }
+}
+Console.WriteLine("Finished Processing Player IPs and Login positions");
 #endregion
 
 #region ChatMessages
