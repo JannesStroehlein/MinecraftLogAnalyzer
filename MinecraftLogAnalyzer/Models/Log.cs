@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MinecraftLogAnalyzer.Models
 {
-    internal record Log
+    public record Log
     {
         public DateTime StartTime { get; set; }
         public string[] Lines { get; set; }

@@ -1,6 +1,6 @@
 ﻿namespace MinecraftLogAnalyzer.Models
 {
-    internal record CommandExecutions
+    public record CommandExecutions
     {
         public string Command { set; get; }
         public DateTime Time { set; get; }

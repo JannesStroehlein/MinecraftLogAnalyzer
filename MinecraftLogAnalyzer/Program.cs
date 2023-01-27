@@ -73,6 +73,8 @@ Console.WriteLine($"Found {playerJoinAndLeaves.Count} Player join and leave even
 Dictionary<string, TimeSpan> playtime = new Dictionary<string, TimeSpan>();
 Dictionary<string, DateTime> runningSessions = new Dictionary<string, DateTime>();
 Dictionary<string, DateTime> lastSeen = new Dictionary<string, DateTime>();
+Dictionary<string, string> UUID = new Dictionary<string, string>();
+
 foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
 {
     string playerName = joinLeaveEvent.Message.Substring(0, joinLeaveEvent.Message.IndexOf(' '));
@@ -179,7 +181,8 @@ Console.WriteLine("Finished Processing Player Advancements");
 #endregion
 
 #region Kills/Deaths
-Dictionary<string, int> mobKills = new Dictionary<string, int>();
+//Dictionary<string, int> mobKills = new Dictionary<string, int>();
+List<MobKills> mobKills = new List<MobKills>();
 
 // Reading all Death Messages
 string langFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "lang.lang");
@@ -236,9 +239,19 @@ foreach (Log l in logs)
                     case 3:
                         if (players.FirstOrDefault((p) => p.Name == match.Groups[2].Value) == default(Player))
                         {
-                            if (!mobKills.ContainsKey(match.Groups[2].Value))
+                            /*if (!mobKills.ContainsKey(match.Groups[2].Value))
                                 mobKills.Add(match.Groups[2].Value, 0);
-                            mobKills[match.Groups[2].Value]++;
+                            mobKills[match.Groups[2].Value]++;*/
+
+                            if (mobKills.FirstOrDefault((m) => m.MobName == match.Groups[2].Value) == default(MobKills))
+                                mobKills.Add(new MobKills() { MobName= match.Groups[2].Value });
+                            mobKills.First((m) => m.MobName == match.Groups[2].Value).PlayerKills.Add(new PlayerKill()
+                            {
+                                Target = match.Groups[1].Value,
+                                Message = possibleDeathMsg.Message,
+                                DeathQualifier = keyValuePair.Key,
+                                Time = possibleDeathMsg.TimeStamp
+                            });
                         }
                         else
                             players.Find((p) => p.Name == match.Groups[2].Value).PlayerKills.Add(new PlayerKill() { Target= match.Groups[1].Value, Message = possibleDeathMsg.Message, DeathQualifier = keyValuePair.Key, Time = possibleDeathMsg.TimeStamp });
@@ -246,9 +259,20 @@ foreach (Log l in logs)
                     case 4:
                         if (players.FirstOrDefault((p) => p.Name == match.Groups[2].Value) == default(Player))
                         {
-                            if (!mobKills.ContainsKey(match.Groups[2].Value))
+                            /*if (!mobKills.ContainsKey(match.Groups[2].Value))
                                 mobKills.Add(match.Groups[2].Value, 0);
-                            mobKills[match.Groups[2].Value]++;
+                            mobKills[match.Groups[2].Value]++;*/
+
+                            if (mobKills.FirstOrDefault((m) => m.MobName == match.Groups[2].Value) == default(MobKills))
+                                mobKills.Add(new MobKills() { MobName = match.Groups[2].Value });
+                            mobKills.First((m) => m.MobName == match.Groups[2].Value).PlayerKills.Add(new PlayerKill()
+                            {
+                                Target = match.Groups[1].Value,
+                                Message = possibleDeathMsg.Message,
+                                DeathQualifier = keyValuePair.Key,
+                                Time = possibleDeathMsg.TimeStamp,
+                                ItemName = match.Groups[3].Value.Replace("[", "").Replace("]", "")
+                            });
                         }
                         else
                             players.Find((p) => p.Name == match.Groups[2].Value).PlayerKills.Add(new PlayerKill() { Target = match.Groups[1].Value, Message = possibleDeathMsg.Message, DeathQualifier = keyValuePair.Key, Time = possibleDeathMsg.TimeStamp, ItemName = match.Groups[3].Value.Replace("[", "").Replace("]", "") });
@@ -292,12 +316,12 @@ foreach (var firstUnlock in firstUnlocks)
     Console.WriteLine($"{firstUnlock.Value.Key,-20} {firstUnlock.Value.Value,-25:G} {firstUnlock.Key,-40}");
 
 var sortedMobKills = from entry in mobKills
-                      orderby entry.Value descending
+                      orderby entry.PlayerKills.Count descending
                       select entry;
 Console.WriteLine("\nDeadliest Mobs:");
 Console.WriteLine($"{"Name",-20} {"Kills",-8}\n");
-foreach (KeyValuePair<string, int> keyValue in sortedMobKills)
-    Console.WriteLine($"{keyValue.Key,-20} {keyValue.Value,-8}");
+foreach (MobKills kills in sortedMobKills)
+    Console.WriteLine($"{kills.MobName,-20} {kills.PlayerKills.Count,-8}");
 
 var sortedPlayerList = from p in players
                         orderby p.LastSeen descending

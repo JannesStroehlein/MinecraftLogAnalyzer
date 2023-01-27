@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MinecraftLogAnalyzer.Models
 {
-    internal record LogMessage
+    public record LogMessage
     {
         private static Regex logMessageRegex = new Regex(@"\[(\d{2}:\d{2}:\d{2})\] \[(.*)/(.*)\]: (.*)");
 

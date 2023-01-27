@@ -1,6 +1,6 @@
 ﻿namespace MinecraftLogAnalyzer.Models
 {
-    internal record PlayerKill
+    public record PlayerKill
     {
         public string DeathQualifier { set; get; }
         public string Target { set; get; }
