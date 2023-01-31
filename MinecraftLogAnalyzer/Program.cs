@@ -75,6 +75,9 @@ Dictionary<string, TimeSpan> playtime = new Dictionary<string, TimeSpan>();
 Dictionary<string, DateTime> runningSessions = new Dictionary<string, DateTime>();
 Dictionary<string, DateTime> lastSeen = new Dictionary<string, DateTime>();
 
+DateTime maxConcurrentPlayerTime = DateTime.MinValue;
+List<string> maxConcurrentPlayers = new List<string>();
+
 foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
 {
     string playerName = joinLeaveEvent.Message.Substring(0, joinLeaveEvent.Message.IndexOf(' '));
@@ -88,6 +91,13 @@ foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
             lastSeen[playerName] = joinLeaveEvent.TimeStamp;
         else 
             lastSeen.Add(playerName, joinLeaveEvent.TimeStamp);
+
+        if (runningSessions.Count > maxConcurrentPlayers.Count)
+        {
+            maxConcurrentPlayerTime = joinLeaveEvent.TimeStamp;
+            maxConcurrentPlayers.Clear();
+            maxConcurrentPlayers.AddRange(runningSessions.Keys);
+        }
     }
     else
     {
@@ -386,6 +396,11 @@ Console.WriteLine("\nPlayer Stats:");
 Console.WriteLine($"\n{"Username",-20} {"Last Seen",-20} {"Messages", -12} {"Kills", -6} {"Deaths",-6} {"d/h",-6} {"Commands",-10} {"Advancements", -16} {"Playtime",-10}\n");
 foreach (Player p in sortedPlayerList)
     Console.WriteLine($"{p.Name,-20} {p.LastSeen,-20} {p.ChatMessages.Count,-12} {p.PlayerKills.Count,-6} {p.Deaths.Count,-6} {p.Deaths.Count / p.PlayTime.TotalHours,-6:N3} {p.Commands.Count,-8} {p.Advancements.Count, -16} {p.PlayTime.TotalHours,-10:N1} h");
+
+Console.WriteLine("\nMax concurrent players:");
+Console.WriteLine($"{maxConcurrentPlayerTime}: {maxConcurrentPlayers.Count} players");
+Console.WriteLine($"{string.Join(", ", maxConcurrentPlayers)}");
+Console.WriteLine();
 
 if (options.NoExport)
 {
