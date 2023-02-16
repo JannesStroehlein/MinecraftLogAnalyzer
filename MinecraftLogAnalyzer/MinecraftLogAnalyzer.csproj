@@ -1,22 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="CsvHelper" Version="30.0.1" />
+    <PackageReference Include="Microsoft.ML" Version="1.7.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
   </ItemGroup>
-
   <ItemGroup>
     <None Update="lang.lang">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
+  <ItemGroup Label="PlaytimePredictor">
+    <None Include="PlaytimePredictor.consumption.cs">
+      <DependentUpon>PlaytimePredictor.mbconfig</DependentUpon>
+    </None>
+    <None Include="PlaytimePredictor.training.cs">
+      <DependentUpon>PlaytimePredictor.mbconfig</DependentUpon>
+    </None>
+    <None Include="PlaytimePredictor.zip">
+      <DependentUpon>PlaytimePredictor.mbconfig</DependentUpon>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

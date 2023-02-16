@@ -12,6 +12,6 @@
         public List<Death> Deaths { get; set; } = new List<Death>();
         public List<CommandExecutions> Commands { get; set; } = new List<CommandExecutions>();
         public Dictionary<string, int> IPs { get; set; } = new Dictionary<string, int>();
-        public List<LoginEventData> LoginPositions { get; set; } = new List<LoginEventData>();
+        public List<LoginSession> LoginPositions { get; set; } = new List<LoginSession>();
     }
 }

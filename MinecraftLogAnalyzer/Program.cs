@@ -8,6 +8,7 @@ using MinecraftLogAnalyzer.Models;
 using MinecraftLogAnalyzer;
 using System.Reflection;
 using System.Globalization;
+using CsvHelper;
 
 ParserResult<CommandLineOptions> result = Parser.Default.ParseArguments<CommandLineOptions>(args);
 
@@ -77,6 +78,7 @@ Dictionary<string, DateTime> lastSeen = new Dictionary<string, DateTime>();
 
 DateTime maxConcurrentPlayerTime = DateTime.MinValue;
 List<string> maxConcurrentPlayers = new List<string>();
+List<KeyValuePair<string, DateTime>> leaveEvents = new List<KeyValuePair<string, DateTime>>();
 
 foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
 {
@@ -112,6 +114,7 @@ foreach (LogMessage joinLeaveEvent in playerJoinAndLeaves)
                 lastSeen[playerName] = joinLeaveEvent.TimeStamp;
             else
                 lastSeen.Add(playerName, joinLeaveEvent.TimeStamp);
+            leaveEvents.Add(new KeyValuePair<string, DateTime>(playerName, joinLeaveEvent.TimeStamp));
         }
         else
         {
@@ -174,9 +177,14 @@ foreach (Log l in logs)
         else
             p.IPs.Add(m.Groups[2].Value, 1);
 
-        p.LoginPositions.Add(new LoginEventData()
+        DateTime leaveTime = (from e in leaveEvents
+                              where e.Key == m.Groups[1].Value && e.Value > msg.TimeStamp
+                              select e.Value).First();
+
+        p.LoginPositions.Add(new LoginSession()
         {
-            Time = msg.TimeStamp,
+            LoginTime = msg.TimeStamp,
+            LogoutTime = leaveTime,
             World = m.Groups[4].Value,
             X = float.Parse(m.Groups[5].Value, CultureInfo.InvariantCulture),
             Y = float.Parse(m.Groups[6].Value, CultureInfo.InvariantCulture),
@@ -424,4 +432,19 @@ else
     Console.WriteLine("Exported all mob kills");
 }
 
+// Player Sessions as a CSV
+
+
+using (var writer = new StreamWriter(Path.Combine(ExportDir, "sessions.csv")))
+using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+{
+    foreach (Player p in players)
+    {
+        /*var sessions = from s in p.LoginPositions
+                       select new { id = players.IndexOf(p), name = p.Name, LoginTime = s.LoginTime, LogOutTime = s.LogoutTime, Duration = s.LogoutTime - s.LoginTime };*/
+       
+        csv.WriteRecords(sessions);
+    }
+}
+Console.WriteLine("Player session export finished");
 #endregion
